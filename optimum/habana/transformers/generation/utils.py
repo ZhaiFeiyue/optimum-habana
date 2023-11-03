@@ -1337,8 +1337,8 @@ class GaudiGenerationMixin(GenerationMixin):
             assert "position_ids" not in model_kwargs, "Untested path"
 
         i = 0
-        self.htcore_generation.mark_step()
-        self.htcore_generation.hpu.default_stream().synchronize()
+        # self.htcore_generation.mark_step()
+        # self.htcore_generation.hpu.default_stream().synchronize()
         s_t = time.time()
         while True:
             if lazy_mode:
