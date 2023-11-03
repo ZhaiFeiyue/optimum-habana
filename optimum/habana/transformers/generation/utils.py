@@ -18,6 +18,8 @@ import copy
 import inspect
 import math
 import warnings
+import time
+import os
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
 import torch
@@ -1328,11 +1330,16 @@ class GaudiGenerationMixin(GenerationMixin):
         bucket_size = model_kwargs["bucket_size"]
 
         prompt_len = input_ids.shape[-1]
+        bs = input_ids.shape[0]
         if bucket_size >= 0:
             inc = iter(incrementor(bucket_size, prompt_len))
         if bucket_size > 0:
             assert "position_ids" not in model_kwargs, "Untested path"
 
+        i = 0
+        self.htcore_generation.mark_step()
+        self.htcore_generation.hpu.default_stream().synchronize()
+        s_t = time.time()
         while True:
             if lazy_mode:
                 self.htcore_generation.mark_step()
@@ -1442,11 +1449,26 @@ class GaudiGenerationMixin(GenerationMixin):
                 this_peer_finished = True
 
             hb_profer.step()
+            i+=1
+            if i == 1:
+                self.htcore_generation.mark_step()
+                self.htcore_generation.hpu.default_stream().synchronize()
+                f_t = time.time()
+
 
             if this_peer_finished and not synced_gpus:
                 break
 
         hb_profer.stop()
+        e_t = time.time()
+        prefill_tps = 1.0 / (f_t - s_t) * bs
+        decode_tps = 1.0 / (e_t - f_t) * bs * (i - 1)
+        total_tps = 1.0 / (e_t - s_t) * bs * i
+        latency_mean = (e_t - s_t) * 1000 / i
+        rank = os.environ.get('RANK', 0)
+        rank = int(rank)
+        if rank == 0:
+            print("=====prefill_tps:{:.2f},decode_tps:{:.2f},total_tps:{:.2f},latency_mean:{:.2f}ms".format(prefill_tps, decode_tps, total_tps, latency_mean))
         if streamer is not None:
             streamer.end()
 
