@@ -1459,6 +1459,10 @@ class GaudiGenerationMixin(GenerationMixin):
             if this_peer_finished and not synced_gpus:
                 break
 
+
+        
+        self.htcore_generation.mark_step()
+        self.htcore_generation.hpu.default_stream().synchronize()
         hb_profer.stop()
         e_t = time.time()
         prefill_tps = 1.0 / (f_t - s_t) * bs
