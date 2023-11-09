@@ -2020,7 +2020,10 @@ class GaudiGenerationMixin(GenerationMixin):
             inc = iter(incrementor(bucket_size, prompt_len))
         if bucket_size > 0:
             assert "position_ids" not in model_kwargs, "Untested path"
+        i = 0
         while True:
+            print('---- ', i)
+            i += 1
             if synced_gpus:
                 # Under synced_gpus the `forward` call must continue until all gpus complete their sequence.
                 # The following logic allows an early break if all peers finished generating their sequence
